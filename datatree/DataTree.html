@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <script src="DataTree.js"></script>
+    
+    <script>
+        var dataTree = new DataTree();
+        var data = [
+            {id: 1, text: '中国地区'},
+            {id: 2, text: '国外'},
+            {id: 3, text: '华北地区', pid: 1},
+            {id: 4, text: '东北地区', pid: 1},
+            {id: 5, text: '华东地区', pid: 1},
+            {id: 6, text: '华中地区', pid: 1},
+            {id: 7, text: '华南地区', pid: 1},
+            {id: 8, text: '西南地区', pid: 1},
+            {id: 9, text: '西北地区', pid: 1},
+            {id: 10, text: '其他地区', pid: 1},
+            {id: 11, text: '日本', pid: 2},
+            {id: 12, text: '北京', pid: 3},
+            {id: 13, text: '天津', pid: 3},
+            {id: 14, text: '河北', pid: 3},
+            {id: 15, text: '内蒙古', pid: 3},
+            {id: 16, text: '山西', pid: 3},
+            {id: 17, text: '上海', pid: 5},
+            {id: 18, text: '福建', pid: 5},
+            {id: 19, text: '江苏', pid: 5},
+            {id: 20, text: '江西', pid: 5},
+            {id: 21, text: '浙江', pid: 5},
+            {id: 22, text: '福州', pid: 18},
+            {id: 23, text: '宁德', pid: 18},
+            {id: 24, text: '三明', pid: 18},
+            {id: 25, text: '厦门', pid: 18},
+            {id: 26, text: '龙城', pid: 18}
+        ];
+        dataTree.load(data);
+        var ldata = [
+                     {id:27, text:'ld23', 
+                         child:[
+                                    {id: 28, text: '28'}
+                                 
+                                 ]
+                     },
+                     {id:29, text:'ld23', 
+                     child:[
+                                {id: 30, text: '28'}
+                             
+                             ]
+                 }
+                     
+                     ];
+        
+        var data1 = [{id: 27, text: '龙12'}, {id: 28, text: '龙23', pid:8}, {id: 29, text: '龙23'}];
+        
+        console.log(dataTree.append(ldata, 4));
+        var ad = [{id: 127, text: '龙12', pid:1}, {id: 128, text: '龙23', pid:2}, {id: 129, text: '龙23'}]
+        console.log(dataTree.append(ad));
+        dataTree.remove(1);
+        //dataTree.moveTo(8)
+        console.log(dataTree);
+    </script>
+</head>
