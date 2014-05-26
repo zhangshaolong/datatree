@@ -157,7 +157,7 @@ var DataTree = function () {
                 if (childKey !== key && pidKey !== key) {
                     dataInfo[key] = val;
                 }
-            })
+            });
             relationMap.pid = pid;
             if (childs) {
                 var child4id = relationMap.child = [];
@@ -176,7 +176,7 @@ var DataTree = function () {
      * 
      */
     var DataTree = function (option) {
-        option = option || {}；
+        option = option || {};
         this.indexData = {};
         this.indexRelation = {};
         setMapKeys(option.mapKeys, this);
@@ -345,7 +345,7 @@ var DataTree = function () {
                     selected.push(key);
                 }
             }
-        })
+        });
         return selected;
     };
     
@@ -392,7 +392,7 @@ var DataTree = function () {
                 var relationModel = indexRelation[id];
                 relationModel._status = status;
                 me.updateChilds(relationModel.child, status);
-            })
+            });
         }
     };
     
@@ -402,86 +402,59 @@ var DataTree = function () {
      *     的child上，所以扁平数据中的targetId可能有多个。
      * @param {Array.<Object>} data 被添加的数据
      * @param {string} targetId 被添加到的节点ID
+     * @returns {Array.<string>} 返回添加的数据中属于数据的顶级ID集合
      */
     DataTree.prototype.append = function (data, targetId) {
-        if (data) {
-            var targets = [];
-            var targetIndexData = this.indexData;
-            var targetIndexRelation = this.indexRelation;
-            targetId = targetId === undefined ? null : targetId;
-            var indexResult = this.buildIndex(data);
-            var indexRelation = indexResult.indexRelation;
-            var targetModel = targetIndexRelation[targetId];
-            if (targetModel) {
-                if (this.isFlat(data)) {
-                    var parents = {};
-                    var nullParentMap = {};
-                    var nulls = indexRelation[ROOT_KEY].child;
-                    if (nulls) {
-                        var targetChild = targetIndexRelation[targetId].child;
-                        if (!targetChild) {
-                            targetChild = [];
-                            targetIndexRelation[targetId].child = targetChild;
-                        }
-                        each(nulls, function (id) {
-                            nullParentMap[id] = 1;
-                            indexRelation[id].pid = targetId;
-                            targetChild.push(id);
-                        })
-                        delete indexRelation[ROOT_KEY];
-                        targets.push(targetId);
-                    }
-                    each(indexRelation, function (model, key) {
-                        if (model.pid === null
-                            || model.pid === undefined) {
-                            if (!nullParentMap[key]) {
-                                parents[key] = model.child;
-                                targets.push(key);
-                            }
-                        }
-                    });
-                    each(parents, function (ids, key) {
-                        var targetChild = targetIndexRelation[key].child;
-                        if (!targetChild) {
-                            targetChild = targetIndexRelation[key].child = [];
-                        }
-                        each(ids, function (id) {
-                            targetChild.push(id);
-                        });
-                    });
-                } else {
-                    var headIndexRelation = indexResult.indexRelation[ROOT_KEY];
-                    if (headIndexRelation) {
-                        var child = headIndexRelation.child;
-                        if (child) {
-                            var targetChild = targetModel.child;
-                            if (!targetChild) {
-                                targetChild = targetModel.child = [];
-                            }
-                            each(child, function (id) {
-                                targetChild.push(id);
-                                indexResult.indexRelation[id].pid = targetId;
-                            });
-                            targets.push(targetId);
-                        }
-                    }
-                }
+        if (!data) {
+            return ;
+        }
+        var targets = [];
+        var targetIndexData = this.indexData;
+        var targetIndexRelation = this.indexRelation;
+        targetId = targetId === undefined ? null : targetId;
+        var indexResult = this.buildIndex(data);
+        var indexRelation = indexResult.indexRelation;
+        var targetModel = targetIndexRelation[targetId];
+        if (targetModel) {
+            var targetChild = targetModel.child;
+            if (!targetChild) {
+                targetChild = targetModel.child = [];
             }
-            each(indexResult.indexData, function (model, key) {
-                if (!targetIndexData[key]) {
-                    targetIndexData[key] = model;
-                } else {
-                    throw '添加的数据中有已经存在的节点';
-                }
-            });
-            each(indexResult.indexRelation, function (model, key) {
-                if (!targetIndexRelation[key]) {
-                    targetIndexRelation[key] = model;
-                } else {
-                    console.log(key)
+            // 为没设置pid的情况添加pid，并关联和原有数据的关系
+            each(indexRelation, function (model, id) {
+                if(model.pid === undefined || model.pid === null) {
+                    if (id !== ROOT_KEY) {
+                        var targetModel4Id = targetIndexRelation[id];
+                        if (targetModel4Id) {
+                            var targetChild4Id = targetModel4Id.child;
+                            if (!targetChild4Id) {
+                                targetChild4Id = targetModel4Id.child = [];
+                            }
+                            targetChild4Id.push(id);
+                        }
+                        model.pid = targetId;
+                        targetChild.push(id);
+                        targets.push(id);
+                    } else {
+                        delete indexRelation[id];
+                    }
                 }
             });
         }
+        each(indexResult.indexData, function (model, key) {
+            if (!targetIndexData[key]) {
+                targetIndexData[key] = model;
+            } else {
+                throw '添加的数据中有已经存在的节点';
+            }
+        });
+        each(indexResult.indexRelation, function (model, key) {
+            if (!targetIndexRelation[key]) {
+                targetIndexRelation[key] = model;
+            } else {
+                console.log(key);
+            }
+        });
         return targets;
     };
     
@@ -513,7 +486,7 @@ var DataTree = function () {
             each(indexModel.child, function (id, i) {
                 delete me.indexData[id];
                 me.remove(id, true);
-            })
+            });
         }
     };
     
@@ -541,7 +514,7 @@ var DataTree = function () {
                     me.updateParents(targetId, targetModel._status || false);
                     return false;
                 }
-            })
+            });
         } else {
             console.log('不能将节点：' + id + '移动到节点：' + targetId + '下');
         }
