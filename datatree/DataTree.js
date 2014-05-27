@@ -82,50 +82,9 @@ var DataTree = function () {
             }
         }
     };
-
-    /**
-     * 扁平的数据分析函数
-     * @param {Array.<Object>} data 需要分析的数据集合
-     * @param {Object} 适配器记录的key转换关系
-     * @param {?Object} indexData 分析得出的数据索引
-     * @param {?Object} indexRelation 分析得出的关系索引
-     * @returns {Object}
-     */
-    var flatDataProcess = function (data, mapKeys, indexData, indexRelation) {
-        var idKey = mapKeys.id;
-        var pidKey = mapKeys.pid;
-        var childKey = mapKeys.child;
-        indexData = indexData || {};
-        indexRelation = indexRelation || {};
-        each(data, function (model, i) {
-            var id = model[idKey];
-            var pid = model[pidKey] === undefined ? null : model[pidKey];
-            var relationMap = indexRelation[id] = {};
-            var dataInfo = indexData[id] = {};
-            each(model, function (val, key) {
-                if (childKey !== key && pidKey !== key) {
-                    dataInfo[key] = val;
-                }
-            });
-            relationMap[pidKey] = pid;
-            var pidMap = indexRelation[pid];
-            if (!pidMap) {
-                pidMap = indexRelation[pid] = {};
-            }
-            var pChilds = pidMap[childKey];
-            if (!pChilds) {
-                pChilds = pidMap[childKey] = [];
-            }
-            pChilds.push(id);
-        });
-        return {
-            indexData: indexData,
-            indexRelation: indexRelation
-        }
-    };
     
     /**
-     * 层级的数据分析函数
+     * 数据分析函数
      * @param {Array.<Object>} data 需要分析的数据集合
      * @param {Object} 适配器记录的key转换关系
      * @param {?Object} indexData 分析得出的数据索引
@@ -134,23 +93,18 @@ var DataTree = function () {
      * @param {?Array.<string>} child4pid 放置上级节点子级的数组
      * @returns {Object}
      */
-    var levelDataProcess = function (data, mapKeys, indexData, indexRelation,
-        pid, child4pid) {
+    var dataProcess = function (data, mapKeys, indexData, indexRelation, pid) {
         var idKey = mapKeys.id;
         var pidKey = mapKeys.pid;
         var childKey = mapKeys.child;
-        pid = pid === undefined ? null : pid;
         indexData = indexData || {};
         indexRelation = indexRelation || {};
-        // 添加第一级数据关系，即把pid为null的数据放入到key为ROOT_KEY的child字段上
-        if (null === pid) {
-            var relationMap = indexRelation[ROOT_KEY] = {};
-            child4pid = relationMap[childKey] = [];
-        }
+        pid = pid === undefined ? null : pid;
         each(data, function (model, i) {
             var id = model[idKey];
-            child4pid && child4pid.push(id);
-            var childs = model[childKey];
+            var pId = model[pidKey] || pid;
+            var child = model[childKey];
+            
             var relationMap = indexRelation[id] = {};
             var dataInfo = indexData[id] = {};
             each(model, function (val, key) {
@@ -158,19 +112,35 @@ var DataTree = function () {
                     dataInfo[key] = val;
                 }
             });
-            relationMap.pid = pid;
-            if (childs) {
-                var child4id = relationMap.child = [];
-                levelDataProcess(childs, mapKeys, indexData, indexRelation,
-                    id, child4id);
+            var relationMap4Pid = indexRelation[pId];
+            if (!relationMap4Pid) {
+                relationMap4Pid = indexRelation[pId] = {};
             }
+            var child4Pid = relationMap4Pid.child;
+            if (!child4Pid) {
+                child4Pid = relationMap4Pid.child = [];
+            }
+            child4Pid.push(id);
+            relationMap.pid = pId;
+            
+            dataProcess(child, mapKeys, indexData, indexRelation, id);
         });
         return {
             indexData: indexData,
             indexRelation: indexRelation
         };
     };
-    
+
+    var repairLevelData = function (data, targetPid, pidKey, childKey) {
+        each(data, function (model) {
+            var pid = model[pidKey];
+            if (pid === null || pid === undefined) {
+                model[pidKey] = targetPid;
+            }
+            repairLevelData(model[childKey]);
+        });
+    };
+
     /**
      * @constructor
      * 
@@ -180,20 +150,6 @@ var DataTree = function () {
         this.indexData = {};
         this.indexRelation = {};
         setMapKeys(option.mapKeys, this);
-    };
-    
-    /**
-     * 数据是否是扁平结构
-     */
-    DataTree.prototype.isFlat = function (data) {
-        var isFlat = true;
-        var childKey = this.mapKeys.child;
-        each(data, function (model) {
-            if (model[childKey] !== undefined) {
-                return isFlat = false;
-            }
-        })
-        return isFlat;
     };
     
     /**
@@ -269,12 +225,13 @@ var DataTree = function () {
         }
     };
 
-    DataTree.prototype.flatDataProcess = function (data) {
-        return flatDataProcess(data, this.mapKeys);
+    DataTree.prototype.dataProcess = function (data) {
+        return dataProcess(data, this.mapKeys);
     };
 
-    DataTree.prototype.levelDataProcess = function (data) {
-        return levelDataProcess(data, this.mapKeys);
+    DataTree.prototype.repairData = function (data, targetPid) {
+        targetPid = targetPid === undefined ? null : targetPid;
+        repairLevelData(data, targetPid, this.mapKeys.pid, this.mapKeys.child);
     };
 
     /**
@@ -282,9 +239,7 @@ var DataTree = function () {
      * @param {Array.<Obejct>} data 数据集
      */
     DataTree.prototype.buildIndex = function (data) {
-        return this.isFlat(data)
-            ? this.flatDataProcess(data)
-            : this.levelDataProcess(data);
+        return this.dataProcess(data);
     };
 
     /**
@@ -412,35 +367,24 @@ var DataTree = function () {
         var targetIndexData = this.indexData;
         var targetIndexRelation = this.indexRelation;
         targetId = targetId === undefined ? null : targetId;
+        this.repairData(data, targetId);
         var indexResult = this.buildIndex(data);
         var indexRelation = indexResult.indexRelation;
-        var targetModel = targetIndexRelation[targetId];
-        if (targetModel) {
-            var targetChild = targetModel.child;
-            if (!targetChild) {
-                targetChild = targetModel.child = [];
-            }
-            // 为没设置pid的情况添加pid，并关联和原有数据的关系
-            each(indexRelation, function (model, id) {
-                if(model.pid === undefined || model.pid === null) {
-                    if (id !== ROOT_KEY) {
-                        var targetModel4Id = targetIndexRelation[id];
-                        if (targetModel4Id) {
-                            var targetChild4Id = targetModel4Id.child;
-                            if (!targetChild4Id) {
-                                targetChild4Id = targetModel4Id.child = [];
-                            }
-                            targetChild4Id.push(id);
-                        }
-                        model.pid = targetId;
-                        targetChild.push(id);
-                        targets.push(id);
-                    } else {
-                        delete indexRelation[id];
+        each(indexRelation, function (model, id) {
+            if (model.pid === null || model.pid === undefined) {
+                var targetModel4Id = targetIndexRelation[id];
+                if (targetModel4Id) {
+                    var targetChild4Id = targetModel4Id.child;
+                    if (!targetChild4Id) {
+                        targetChild4Id = targetModel4Id.child = [];
                     }
+                    model.pid = targetModel4Id.pid;
+                    each(model.child, function (cId) {
+                        targetChild4Id.push(cId);
+                    });
                 }
-            });
-        }
+            }
+        });
         each(indexResult.indexData, function (model, key) {
             if (!targetIndexData[key]) {
                 targetIndexData[key] = model;
